@@ -43,7 +43,11 @@ class ParticleFilter:
         new_particles = self.particles
 
         # YOUR IMPLEMENTATION HERE
-        
+
+        for i in range(self.num_particles):
+            noisy_u = env.sample_noisy_action(u, self.alphas)
+            new_particles[i] = env.forward(new_particles[i, :], noisy_u).reshape(-1)
+
         # YOUR IMPLEMENTATION END HERE
         return new_particles
 
@@ -66,9 +70,29 @@ class ParticleFilter:
                 beta: noise parameters for landmark observation model            
         """
         particles = self.move_particles(env, u)
-        mean, cov = None, None
+        mean, cov = self.mean_and_variance(particles)
         # YOUR IMPLEMENTATION HERE
         
+        # Compute likelihood for each particle
+        for i in range(self.num_particles):
+            expected_z = env.observe(particles[i, :], marker_id)
+            innovation = minimized_angle(expected_z - z) 
+            likelihood = env.likelihood(innovation, self.beta)
+            self.weights[i] *= likelihood
+
+        # normalized the weights
+        if sum(self.weights) > 0:
+            self.weights /= sum(self.weights)
+        else:
+            self.weights = np.ones(self.num_particles) / self.num_particles
+
+        # resample the particles
+        resampled_particles = self.resample(particles, self.weights)
+
+        self.particles = resampled_particles
+        self.weights = np.ones(self.num_particles) / self.num_particles
+
+
         # YOUR IMPLEMENTATION END HERE
         return mean, cov
 
@@ -83,6 +107,17 @@ class ParticleFilter:
         """
         new_particles = None
         # YOUR IMPLEMENTATION HERE
+
+        # inverse cdf sampling
+        new_particles = np.zeros_like(particles)
+        cumulative_sum = np.cumsum(weights)
+        init_r = np.random.uniform(0, 1 / self.num_particles)
+        i = 0
+        for m in range(self.num_particles):
+            U = init_r + m / self.num_particles
+            while U > cumulative_sum[i] and i < self.num_particles - 1:
+                i += 1
+            new_particles[m, :] = particles[i, :]            
         
         # YOUR IMPLEMENTATION END HERE
         return new_particles
