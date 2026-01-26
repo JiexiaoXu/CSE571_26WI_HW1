@@ -17,6 +17,29 @@ class ObservationModel(nn.Module):
         # 2. Linear layer with 512 input channels, 512 output channels, ReLU
         # 3. Linear layer with 512 input channels, suitable output features (figure it out yourself!)
         # These functions may be useful: nn.Sequential, nn.Conv2d, nn.ReLU, nn.MaxPool2d, nn.Linear
+
+        self.conv_stack = nn.Sequential(
+            nn.Conv2d(in_channels=3, out_channels=32, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2),
+            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2)
+        )
+
+        self.mlp = nn.Sequential(
+            nn.Linear(in_features=256*4*4, out_features=512),
+            nn.ReLU(),
+            nn.Linear(in_features=512, out_features=512),
+            nn.ReLU(),
+            nn.Linear(in_features=512, out_features=output_channels)
+        )
         
         # YOUR IMPLEMENTATION END HERE
 

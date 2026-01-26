@@ -84,7 +84,19 @@ class ExtendedKalmanFilterSLAM:
         sigma_pred = self.sigma # [3 + 2 * self.N, 3 + 2 * self.N]
         Gt = None
         # YOUR IMPLEMENTATION STARTS HERE
+
+        Gt = self.G(self.mu, u, Fx)
+        Rt = self.R(self.mu, u)
         
+        new_mu = mu_pred.copy()
+        new_mu[0,0] += trans * np.cos(theta + rot1)
+        new_mu[1,0] += trans * np.sin(theta + rot1)
+        new_mu[2,0] += rot1 + rot2
+        mu_pred = new_mu
+
+        new_sigma = Gt @ sigma_pred @ Gt.T + Rt
+        sigma_pred = new_sigma
+
         # YOUR IMPLEMENTATION ENDS HERE
         
         # CORRECTION
@@ -99,6 +111,11 @@ class ExtendedKalmanFilterSLAM:
             z_pred = self.observe(mu_pred, j)
             # YOUR IMPLEMENTATION STARTS HERE
             # correct mu_pred and sigma_pred with observation on landmark
+            k_gain = sigma_pred @ H.T @ np.linalg.inv(H @ sigma_pred @ H.T + self.measure_cov)
+            innovation = z - z_pred
+            innovation[0,0] = minimized_angle(innovation[0,0])
+            mu_pred = mu_pred + k_gain @ innovation
+            sigma_pred = (np.eye(sigma_pred.shape[0]) - k_gain @ H  ) @ sigma_pred
             
             # YOUR IMPLEMENTATION ENDS HERE
 
@@ -114,6 +131,12 @@ class ExtendedKalmanFilterSLAM:
         jacobian = np.zeros((3,3))
         Gt = np.eye(Fx.shape[1])
         # YOUR IMPLEMENTATION STARTS HERE
+
+        jacobian = [[0.0, 0.0, -trans * np.sin(theta + rot1)],
+              [0.0, 0.0, trans * np.cos(theta + rot1)],
+              [0.0, 0.0, 0.0]]
+        jacobian = np.array(jacobian)
+        Gt += Fx.T @ jacobian @ Fx
         
         # YOUR IMPLEMENTATION ENDS HERE
         return Gt
@@ -125,7 +148,12 @@ class ExtendedKalmanFilterSLAM:
         rot1, trans, rot2 = u.ravel()
         Vt = np.zeros((3, 3))
         # YOUR IMPLEMENTATION STARTS HERE
-        
+
+        Vt = [[ - trans * np.sin(prev_theta + rot1), np.cos(prev_theta + rot1), 0],
+              [trans * np.cos(prev_theta + rot1), np.sin(prev_theta + rot1), 0],
+                [1, 0, 1]]
+        Vt = np.array(Vt)
+
         # YOUR IMPLEMENTATION ENDS HERE
         return Vt
 
@@ -147,6 +175,11 @@ class ExtendedKalmanFilterSLAM:
         control_noise_cov = self.noise_from_motion(u, self.control_noise_param)
         Rt = None
         # YOUR IMPLEMENTATION HERE
+
+        Rt = Vt @ control_noise_cov @ Vt.T
+        Fx = np.zeros((3, 3 + 2 * self.N))
+        Fx[:3, :3] = np.eye(3)
+        Rt = Fx.T @ Rt @ Fx
         
         # YOUR IMPLEMENTATION HERE
         return Rt
@@ -165,6 +198,21 @@ class ExtendedKalmanFilterSLAM:
         Hm = None # Jacobian of the observation model with respect to the landmark
         H = None # the H_t^i matrix to return
         # YOUR IMPLEMENTATION STARTS HERE
+
+
+        r = np.sqrt((xm - xt)**2 + (ym - yt)**2)
+
+        Hs = [[(ym - yt) / (r**2), -(xm - xt) / (r**2), -1],
+              [-(xm - xt) / r, -(ym - yt) / r, 0],]
+        Hs = np.array(Hs)
+        
+        Hm = [[-(ym - yt) / (r**2), (xm - xt) / (r**2)],
+              [(xm - xt) / r, (ym - yt) / r]]
+        Hm = np.array(Hm)
+
+        H = np.zeros((2, mu.shape[0]))
+        H[:, :3] = Hs
+        H[:, 3 + 2 * j: 3 + 2 * j + 2] = Hm
         
         # YOUR IMPLEMENTATION ENDS HERE
         return H
