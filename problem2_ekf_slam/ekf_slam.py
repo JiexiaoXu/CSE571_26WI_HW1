@@ -200,7 +200,7 @@ class ExtendedKalmanFilterSLAM:
         # YOUR IMPLEMENTATION STARTS HERE
 
 
-        r = np.sqrt((xm - xt)**2 + (ym - yt)**2)
+        r = np.sqrt((xm - xt)**2 + (ym - yt)**2) + 1e-6
 
         Hs = [[(ym - yt) / (r**2), -(xm - xt) / (r**2), -1],
               [-(xm - xt) / r, -(ym - yt) / r, 0],]
